@@ -2,13 +2,16 @@
 % This code 1) finds the LFP channel that is closest to the one defined in the
 % experimental keys for each probe (if they exist). 2) plots the LFP for
 % the the SWR intervals. 3) saves the output in a defined folder. 
+
 clear; clc;  
 
 % ~~~ PARAMETERS YOU NEED TO CHANGE ~~~ 
+
 % cd to your session directory 
-cd D:\Task2-SWR-derived\M537\preprocessed\M537-2025-04-12
+cd D:\Task2-SWR-derived\M537\preprocessed\M537-2025-04-14
+
 % cd to your figure saving directory 
-folderPath = ('C:\Users\mimia\Documents\OdorSeq Figures\M537\2025_04_12');
+folderPath = ('C:\Users\mimia\Documents\OdorSeq Figures\M537\2025_04_14');
 
 %% Load all the data 
 LoadExpKeys
@@ -56,23 +59,6 @@ cd (folderPath)
 for i = 1:length(figList)
     figHandle = figList(i);
     figNum = num2str(get(figHandle, 'Number'));
-    saveas(figHandle, ['Figure_imec0_' figNum '.png']);
+    saveas(figHandle, ['Figure_' figNum '.png']);
 end
 
-close all ; 
-
-% plot stuff 
-cfg_plot = [];
-cfg_plot.display = 'iv';
-cfg_plot.mode    = 'center';
-cfg_plot.fgcol   = 'k';
-PlotTSDfromIV(cfg_plot, swrs_imec1, lfp_imec1);
-
-% save stuff! 
-figList = findobj(allchild(0), 'flat', 'Type', 'figure');
-cd (folderPath) 
-for i = 1:length(figList)
-    figHandle = figList(i);
-    figNum = num2str(get(figHandle, 'Number'));
-    saveas(figHandle, ['Figure_imec1_' figNum '.png']);
-end
