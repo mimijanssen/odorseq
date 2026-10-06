@@ -6,73 +6,66 @@ clear; clc;
 
 % ~~~ PARAMETERS YOU NEED TO CHANGE ~~~ 
 % cd to your session directory 
-cd D:\Task2-SWR-derived\M537\preprocessed\M537-2025-04-12
+cd D:\Task2-SWR-derived\M590\preprocessed\M590-2025-04-05
 % cd to your figure saving directory 
-folderPath = ('C:\Users\mimia\Documents\OdorSeq Figures\M537\2025_04_12');
+folderPath = ('C:\Users\mimia\Documents\OdorSeq Figures\M590\2025_04_05');
 
 %% Load all the data 
 LoadExpKeys
+probes = {'imec0', 'imec1'};
 
-load('imec0_SWR') % imec0_swr
-load('imec0_clean_lfp') % imec0 
-load('imec1_SWR') % imec1_swr
-load('imec1_clean_lfp') % imec1
+for p = 1:numel(probes)
+    probe = probes{p};
+    swrFile = [probe '_SWR.mat'];
+    lfpFile = [probe '_clean_lfp.mat'];
 
-% AP for imec0 SWRs 
-targetNum = str2double(regexp(ExpKeys.imec0_best_SWR_channel, '\d+', 'match', 'once')); %swr_chan_0 = str2num(erase(ExpKeys.imec0_best_SWR_channel, ['A','P'])); 
-apNums = str2double(regexp(cellstr(imec0.channel_ids), '(?<=AP)\d+', 'match', 'once'));
-[~, idx_0] = min(abs(apNums - targetNum));
+    % ---- Skip this probe if the SWR (or LFP) file is missing ----
+    if ~isfile(swrFile) || ~isfile(lfpFile)
+        fprintf('Skipping %s: missing %s or %s\n', probe, swrFile, lfpFile);
+        continue
+    end
 
-% AP for imec1 SWRs
-targetNum = str2double(regexp(ExpKeys.imec1_best_SWR_channel, '\d+', 'match', 'once')); %swr_chan_0 = str2num(erase(ExpKeys.imec0_best_SWR_channel, ['A','P'])); 
-apNums = str2double(regexp(cellstr(imec1.channel_ids), '(?<=AP)\d+', 'match', 'once'));
-[~, idx_1] = min(abs(apNums - targetNum));
+    % Load data for this probe
+    S = load(swrFile);        % contains imec0_swr or imec1_swr
+    L = load(lfpFile);        % contains imec0 or imec1
 
-%% Plot and Save the data.
+    swrVar = [probe '_swr'];
+    if ~isfield(S, swrVar) || ~isfield(L, probe)
+        fprintf('Skipping %s: expected variables not found in files\n', probe);
+        continue
+    end
+    swr_struct = S.(swrVar);
+    lfp_struct = L.(probe);
 
-% format iv to MVDM lab structure 
-swrs_imec0 = imec0_swr.iv; 
-swrs_imec1 = imec1_swr.iv; 
+    % Find the closest AP channel to the best SWR channel in ExpKeys
+    keyField = [probe '_best_SWR_channel'];
+    if ~isfield(ExpKeys, keyField)
+        fprintf('Skipping %s: ExpKeys.%s not defined\n', probe, keyField);
+        continue
+    end
+    targetNum = str2double(regexp(ExpKeys.(keyField), '\d+', 'match', 'once'));
+    apNums = str2double(regexp(cellstr(lfp_struct.channel_ids), '(?<=AP)\d+', 'match', 'once'));
+    [~, idx] = min(abs(apNums - targetNum));
 
-% format tsd to MVDM lab structure
-lfp_imec0 = tsd; 
-lfp_imec0.data = (imec0.lfp_traces(:,idx_0))'; % with corresponding LFP that has good SWRs
-lfp_imec0.tvec = imec0.lfp_tvec; 
+    % Format to MVDM lab structures
+    swrs = swr_struct.iv;
+    lfp = tsd;
+    lfp.data = (lfp_struct.lfp_traces(:, idx))';
+    lfp.tvec = lfp_struct.lfp_tvec;
 
-lfp_imec1 = tsd; 
-lfp_imec1.data = (imec1.lfp_traces(:,idx_1))'; % with corresponding LFP that has good SWRs
-lfp_imec1.tvec = imec1.lfp_tvec; 
+    % Plot
+    cfg_plot = [];
+    cfg_plot.display = 'iv';
+    cfg_plot.mode    = 'center';
+    cfg_plot.fgcol   = 'k';
+    PlotTSDfromIV(cfg_plot, swrs, lfp);
 
-% plot stuff 
-cfg_plot = [];
-cfg_plot.display = 'iv';
-cfg_plot.mode    = 'center';
-cfg_plot.fgcol   = 'k';
-PlotTSDfromIV(cfg_plot, swrs_imec0, lfp_imec0);
-
-% save stuff! 
-figList = findobj(allchild(0), 'flat', 'Type', 'figure');
-cd (folderPath) 
-for i = 1:length(figList)
-    figHandle = figList(i);
-    figNum = num2str(get(figHandle, 'Number'));
-    saveas(figHandle, ['Figure_imec0_' figNum '.png']);
-end
-
-close all ; 
-
-% plot stuff 
-cfg_plot = [];
-cfg_plot.display = 'iv';
-cfg_plot.mode    = 'center';
-cfg_plot.fgcol   = 'k';
-PlotTSDfromIV(cfg_plot, swrs_imec1, lfp_imec1);
-
-% save stuff! 
-figList = findobj(allchild(0), 'flat', 'Type', 'figure');
-cd (folderPath) 
-for i = 1:length(figList)
-    figHandle = figList(i);
-    figNum = num2str(get(figHandle, 'Number'));
-    saveas(figHandle, ['Figure_imec1_' figNum '.png']);
+    % Save
+    figList = findobj(allchild(0), 'flat', 'Type', 'figure');
+    for i = 1:length(figList)
+        figHandle = figList(i);
+        figNum = num2str(get(figHandle, 'Number'));
+        saveas(figHandle, fullfile(folderPath, ['Figure_' probe '_' figNum '.png']));
+    end
+    close all;
 end
